@@ -13,12 +13,27 @@
 <meta property="og:url" content="https://ytyaru.github.io/JS.RID128B64.20251226161634/index.html">
 <meta property="og:site_name" content="GitHub Pages">
 <!--<meta property="og:image" content="https://github.com/ytyaru/JS.RID128B64.20251226161634/blob/master/docs/asset/image/eye-catch.png?raw=true">-->
+<!--
 <link rel="stylesheet" href="css/style.css">
+-->
+<style>
+body {
+    background-color: #dddddd;
+    color: #000000;
+}
+</style>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
 <script src="../lib/van/1.5.3/nomodule/min.js"></script>
 <script src="../js/footer.js"></script>
 <script src="../lib/util/type.js"></script>
 <script src="../lib/util/test/assertion.js"></script>
+-->
+<link rel="stylesheet" href="lib/highlightjs/styles/a11y-dark.min.css">
+<script src="lib/highlightjs/highlight.min.js"></script>
+<script src="lib/highlightjs/languages/javascript.min.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
 <script src="js/rid128b64.js"></script>
 <script src="js/copy-to-clipbord.js"></script>
 <script src="js/main.js"></script>
@@ -29,6 +44,15 @@
         <p>グローバル識別子を生成する。128bitの乱数を生成し<a href="https://developer.mozilla.org/ja/docs/Glossary/Base64#url_%E3%81%8A%E3%82%88%E3%81%B3%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB%E5%90%8D%E3%82%BB%E3%83%BC%E3%83%95%E3%81%AE_base64" target="_blank" rel="noopener noreferrer">Base64URL</a>にしてクリップボードにコピーする。</p>
         <button id="generate">ID作成</button>
         <textarea id="ids" rows="5" cols="22"></textarea>
+        <h2>ソースコード</h2>
+        <select id="context">
+            <option value="js">Classic</option>
+            <option value="mjs">ESM,Bun,Deno</option>
+            <option value="cjs">Node.js</option>
+        <select>
+        <!--<textarea id="sourceCode" rows="5" cols="22"></textarea>-->
+        <button id="copySourceCode">📋</button>
+        <pre><code id="hljsSourceCode"></code></pre>
         <h2>各種ID比較</h2>
 <table border="1">
   <thead>
@@ -85,7 +109,7 @@
       <td>126bit相当の乱数（デフォルト設定：21文字）</td>
     </tr>
     <tr style="background-color:#FFFF88;">
-      <td>RID128B64</td>
+      <td><a href="https://github.com/ytyaru/JS.RID128B64.20251226161634" target="_blank" rel="noopener noreferrer">RID128B64</a></td>
       <td>128 bits</td>
       <td>64</td>
       <td>22</td>
