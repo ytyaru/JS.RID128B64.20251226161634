@@ -1,179 +1,3 @@
-class IdHead {// 'RID128B64SUVP'のようなIDの型を示す文字列
-    /**
-     * IDメタデータの妥当性を判定し、詳細な構成を返す
-     * @param {string} metaString - ハイフン（乱数セパレータ）より前の文字列
-     * @returns {object|null} 妥当なら解析オブジェクト、不当ならnull
-     */
-    decode(metaString) {
-        // 1:Type, 2:ID(固定文字列), 3:数値(bitsかradix), 4:R+数値(明示的radix), 5:F(Full), 6:flags
-        const pattern = /^([RTI])(ID)?(\d+(?:-\d+)?)?(?:R(\d+)|(F))?([SUVP]*)$/;
-        const match = metaString.match(pattern);
-
-        if (!match) return null;
-
-        let [_, type, hasId, rawNum, explicitRadix, isFull, flagsStr] = match;
-
-        let bits = { time: 0, random: 0 };
-        let radix = 64;
-
-        // --- bits と radix の振り分けロジック ---
-        let bitsPart = null;
-        let radixPart = explicitRadix;
-
-        if (rawNum) {
-            // 明示的な基数指定(R32やF)が後ろにあるなら、前の数字(rawNum)は確実にbits
-            if (explicitRadix || isFull) {
-                bitsPart = rawNum;
-            } 
-            // 後ろに基数指定がない場合、仕様により「bits省略時はRも省略可」＝ radixとみなす
-            else {
-                radixPart = rawNum;
-                bitsPart = null; // bitsはデフォルト(128)へ
-            }
-        }
-
-        // --- bitsオブジェクトの構築 ---
-        if (type === 'T') {
-            const val = bitsPart || "128"; // 省略時は合計128
-            if (val.includes('-')) {
-                const [t, r] = val.split('-').map(Number);
-                bits.time = t;
-                bits.random = r;
-            } else {
-                const total = parseInt(val, 10);
-                bits.time = 48; // Timedデフォルト
-                bits.random = total - 48;
-            }
-            if (bits.time < 48 || bits.random < 0) return null;
-        } else {
-            if (bitsPart && bitsPart.includes('-')) return null; // R,Iでハイフン不可
-            bits.time = 0;
-            bits.random = bitsPart ? parseInt(bitsPart, 10) : 128;
-            if (bits.random < 8) return null;
-        }
-
-        // --- radixの確定 ---
-        if (isFull) {
-            radix = 1048576;
-        } else if (radixPart) {
-            radix = parseInt(radixPart, 10);
-            if (!((radix >= 2 && radix <= 64) || radix === 256)) return null;
-        }
-
-        // --- flagsの確定 ---
-        const flagSet = new Set(flagsStr);
-        if (flagSet.size !== flagsStr.length) return null;
-
-        return {
-            type,
-            bits,
-            radix,
-            flags: {
-                S: flagSet.has('S'),
-                U: flagSet.has('U'),
-                V: flagSet.has('V'),
-                P: flagSet.has('P')
-            }
-        };
-    }
-    /**
-     * 解析オブジェクトからメタデータ文字列を生成する
-     * @param {object} obj - type, bits, radix, flags を持つオブジェクト
-     * @returns {string} メタデータ文字列
-     */
-    encode(obj) {
-        const { type, bits, radix, flags } = obj;
-        let res = type + "ID";
-
-        const isDefaultBits = (type === 'T') 
-            ? (bits.time === 48 && bits.random === 80) 
-            : (bits.time === 0 && bits.random === 128);
-        const isDefaultRadix = (radix === 64);
-
-        // bitsがデフォルトでない場合のみ出力
-        if (!isDefaultBits) {
-            if (type === 'T') {
-                res += `${bits.time}-${bits.random}`;
-            } else {
-                res += bits.random;
-            }
-        }
-
-        // radixの出力
-        if (radix === 1048576) {
-            res += "F";
-        } else if (!isDefaultRadix) {
-            // bitsが省略されている場合は R も省略可能 (RID32 形式)
-            // bitsがある場合は区別のため R をつける (RID256R32 形式)
-            if (isDefaultBits) {
-                res += radix;
-            } else {
-                res += "R" + radix;
-            }
-        }
-
-        // flags
-        ['S', 'U', 'V', 'P'].forEach(f => {
-            if (flags[f]) res += f;
-        });
-
-        return res;
-    }
-}
-
-export const id = (head='RID128R64', nextInt=0n)=>{
-};
-export class ID {
-    static get(head='RID128R64', nextInt=0n) {
-    }
-    static convert(ins, head) {
-    }
-}
-class BaseN {// 2〜63
-    constructor(head) {}
-    get full() {}
-    get head() {}
-    get body() {}
-}
-const IdKinds = ['R','T','I'];
-class BaseNStringHead {
-    constructor(kind, bits, radix, sortabled=false, urlUnsafed=false, visibled=false, padded=false) {}
-    get kind() {}
-    get bits() {}
-    get radix() {}
-    get sortabled() {}
-    get urlUnsafed() {}
-    get visibled() {}
-    get padded() {}
-    get str() {} // 'RID128R64SUVP'のような文字列を返す
-    #encode(kind, bits, radix, sortabled=false, urlUnsafed=false, visibled=false, padded=false) {
-        
-    }
-    #decode(head) {
-        /^(?:<kind>(R|T|I)ID(?:<bits>\d+)?R?(?:<radix>(\d+|U))?(?:<flags>S?U?V?P?))-(?:<random>.+)$/
-    }
-    #encodeKind(kind) {
-        if (Number.isSafeInteger(kind)) {throw new TypeError(`kindは安全な整数値であるべきです。`)}
-        if (kind < 0 || IdKinds.length <= kind) {throw new TypeError(`kindは0〜${IdKinds.length-1}のいずれかであるべきです。`)}
-    }
-}
-
-class BaseNString {
-    constructor(head, body) {}
-    get full() {}
-    get head() {}
-    get body() {}
-    set body(v) {}
-}
-class BaseNStringBody {
-    get str() {}
-    get u8a() {}
-    get int() {}
-    set str(v) {}
-    set u8a(v) {}
-    set int(v) {}
-}
-
 // B64Int.getPaddingNum(this._.int, 64))
 export class SomeBase {
     static fromRadix(radix, sortable, visibled, urlSafed, padded) {
@@ -264,36 +88,20 @@ class BaseChar {
     //static #isVisibled(chars) {return 2 <= chars.length && chars.length <= 62 ? Array.from(this.#getConfusingChars( (32===chars.length ? 60 : chars.length) )).every(c=>-1<chars.indexOf(c)) : false;}
 }
 class BaseC {// C=任意使用文字列
-    constructor(bits, chars, arrowMultiBytePerChar=false, onlyTwoPowLen=false, padded=false) {
+    constructor(chars, arrowMultiBytePerChar=false, onlyTwoPowLen=false, padded=false) {
         this._ = {spec:BaseChars.valid(chars, arrowMultiBytePerChar, onlyTwoPowLen, padded), v:{str:null, u8a:null, int:null}};
-        if (!(Number.isSafeInteger(bits) && 8<=bits)) {throw new TypeError(`bitsは8以上でNumber.isSafeInteger()がtrueを返す値であるべきです。`)}
-        this._.spec.bits = bits;
     }
-    get bits() {return this._.spec.bits}
-    get chars() {return this._.spec.chars}
-    get sortable() {return this._.spec.sortable}
-    get visibled() {return this._.spec.visibled}
-    get urlSafed() {return this._.spec.urlSafed}
-    get padded() {return this._.spec.padded}
     get str() {return this._.v.str}
     get u8a() {return this._.v.u8a}
     get int() {return this._.v.int}
     set str(v) {
-        if ('string'!==typeof v) {throw new TypeError(`代入値はString値であるべきです。`)}
         if (Array.from(v).some(c=>-1===this._.spec.chars.indexOf(c))) {throw new TypeError(`代入値に無効な文字が含まれています。次の文字だけで構成してください。:${this._.spec.chars}`)}
         this._.v.str = v;
         this._.v.u8a = B64Str.toU8a(v);
         this._.v.int = B64Str.toInt(v);
-        const expectedBits = (this.padded ? 0 : B64Int.getPaddingNum(this._.v.int, this._.spec.chars.length)) + (this._.v.u8a.byteLength*8);
-        if (this.bits!==expectedBits) {throw new TypeError(`bitsが一致しません。期待値:${bits}, 実際値:${this._.v.u8a.byteLength*8}`)}
     }
-    set u8a(v) {
-        if (v instanceof Uint8Array) {throw new TypeError(`代入値はUint8Arrayインスタンスであるべきです。`)}
-        this._.v.u8a
-    }
-    set int(v) {
-        this._.v.int
-    }
+    set u8a(v) {return this._.v.u8a}
+    set int(v) {return this._.v.int}
 
     valid(str) {
 
@@ -308,7 +116,7 @@ class BaseN {// X=2〜63
 
 export class Base64URL extends Base64 {
     static valid(str) {B64U.valid(str); return this.#calcBase64Padding(str);}
-    static fromBigInt(int) {return new Base64URL(B64Str.toBase64URL(B64Int.toStr(int)), B64Int.toU8a(int), int);}
+    static fromBigInt(int) {return new Base64URL(B64Str.toBase64URL(B64Int.toStr(int)), B64Int.toU8aBE(int), int);}
     static fromU8a(u8a) {return new Base64URL(B64Str.toBase64URL(B64U8a.toStr(u8a)), u8a, B64U8a.toIntBE(u8a));}
     constructor(str, u8a, int) {
         const padNum = B64UStr.valid(str);
@@ -323,7 +131,7 @@ export class Base64 {
     static valids(str,u8a,int) {
         this.valid(str);
         if (u8a) {if(str!==B64U8a.toStr(u8a)){throw new TypeError(`strとu8aが代入されましたが、互いに異なる値です。両者共同じ値にしてください。`)}}
-        if (int) {if(int!==B64Int.toU8a(int))}{throw new TypeError(`strとu8aとintが代入されましたが、intの値がstrやu8aと異なる値です。全て同じ値にしてください。`)}}
+        if (int) {if(int!==B64Int.toU8aBE(int))}{throw new TypeError(`strとu8aとintが代入されましたが、intの値がstrやu8aと異なる値です。全て同じ値にしてください。`)}}
         return true;
     }
     static valid(str) {return B64.valid(str);}
@@ -335,7 +143,7 @@ export class Base64 {
         this._.u8a = u8a instanceof Uint8Array ? u8a : B64Str.toU8a(str);
         if (u8a) {if(str!==B64U8a.toStr(u8a)){throw new TypeError(`strとu8aが代入されましたが、互いに異なる値です。両者共同じ値にしてください。`)}}
         this._.int = 'bigint'===typeof int ? int : B64U8a.toIntBE(this._.u8a);
-        if (int) {if(int!==B64Int.toU8a(int))}{throw new TypeError(`strとu8aとintが代入されましたが、intの値がstrやu8aと異なる値です。全て同じ値にしてください。`)}}
+        if (int) {if(int!==B64Int.toU8aBE(int))}{throw new TypeError(`strとu8aとintが代入されましたが、intの値がstrやu8aと異なる値です。全て同じ値にしてください。`)}}
     }
     get int() {return this._.int}
     get u8a() {return this._.u8a}
@@ -372,17 +180,17 @@ class B64Str extends ValidStr {
 }
 class B64U8a {
     static toStr(u8a) {return 'function'===typeof bytes.toBase64 ? bytes.toBase64() : btoa(String.fromCharCode(...bytes))}
-    static toInt(u8a, isLE=false) {// Uint8Array→BigInt(エンディアン選択可)
+    static toInt(u8a) {return this.toIntBE(u8a)}
+    static toIntBE(u8a) {// Uint8Array→BigInt(ビッグエンディアン)
         let result = BigInt(0);
-        const len = u8a.length;
-        for (let i=0; i<len; i++) {
-            const index = isLE ? (len - 1 - i) : i;
-            result = (result << 8n) + BigInt(u8a[index]);
-        }
+        for (const byte of u8a) {result = (result << 8n) + BigInt(byte);}
         return result;
     }
-    static toIntBE(u8a) {return this.toInt(u8a, false)} // ビッグエンディアン
-    static toIntLE(u8a) {return this.toInt(u8a, true)} // リトルエンディアン
+    static toIntLE(u8a) {// Uint8Array→BigInt(リトルエンディアン)
+        let result = BigInt(0);
+        for (let i=u8a.length-1; i>= 0; i--) {result = (result << 8n) + BigInt(u8a[i]);}
+        return result;
+    }
 }
 class B64Int {
     static toStr(int) {
@@ -402,6 +210,7 @@ class B64Int {
         });
         return btoa(binaryString); // ブラウザ環境の場合。Node.jsではBufferを使う
     }
+//    static toU8a(int) {return this.toU8aBE(int)}
     static toU8a(int, isLE=false) {// BigInt→Uint8Array（エンディアン選択可）
         let hex = int.toString(16);
         if (hex.length % 2 !== 0) {hex = '0' + hex;} // 長さを偶数に調整
@@ -414,8 +223,28 @@ class B64Int {
         }
         return u8a;
     }
-    static toU8aBE(int) {return this.toU8a(int,false)} // ビッグエンディアン
-    static toU8aLE(int) {return this.toU8a(int,true)} // リトルエンディアン
+    static toU8aBE(int) {// BigInt→Uint8Array（ビッグエンディアン）
+        let hex = int.toString(16);
+        if (hex.length % 2 !== 0) {hex = '0' + hex;} // 長さを偶数に調整
+        const len = hex.length / 2;
+        const u8a = new Uint8Array(len);
+        for (let i=0; i<len; i++) {// 8ビットずつ右シフトして下位8ビットを抽出
+            u8a[len-1-i] = Number(int & 0xffn);
+            int >>= 8n;
+        }
+        return u8a;
+    }
+    static toU8aLE(int) {// BigInt→Uint8Array（リトルエンディアン）
+        let hex = int.toString(16);
+        if (hex.length % 2 !== 0) {hex = '0' + hex;} // 長さを偶数に調整
+        const len = hex.length / 2;
+        const u8a = new Uint8Array(len);
+        for (let i=0; i<len; i++) {// 8ビットずつ右シフトして下位8ビットを順に格納
+            u8a[i] = Number(int & 0xffn);
+            int >>= 8n;
+        }
+        return u8a;
+    }
     static getPaddingNum(I, radix=64) {// 値Iが基数radixの時、必要なパディング数を返す（I,radixはBigInt型。戻り値はNumber型）
         if (0n===I) {return 1;} // 0または1を扱う特殊なケース
         let [padding,power] = [0n,1n];
