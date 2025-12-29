@@ -138,10 +138,10 @@ class IdHead {// 'RID128B64SUVP'のようなIDの型を示す文字列
     get timeBits() {return this._.bits.time}
     get randomBits() {return this._.bits.random}
     get radix() {return this._.radix}
-    get sortable() {return this._.S}
-    get urlUnsafed() {return this._.U}
-    get visibled() {return this._.V}
-    get padded() {return this._.P}
+    get sortable() { return this._.flags.S }
+    get urlUnsafed() { return this._.flags.U }
+    get visibled() { return this._.flags.V }
+    get padded() { return this._.flags.P }
 }
 
 export const id = (head='RID128R64', nextInt=0n)=>{
