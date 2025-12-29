@@ -1,15 +1,23 @@
+class IdError extends Error {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdError'}}
+class IdDecordError extends IdError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdDecordError'}}
+class IdEncordError extends IdError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdEncordError '}}
+class IdHeadDecordError extends IdDecordError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdHeadDecordError'}}
+class IdHeadEncordError extends IdEncordError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdHeadEncordError '}}
+class IdBodyDecordError extends IdDecordError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdBodyDecordError'}}
+class IdBodyEncordError extends IdEncordError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdBodyEncordError '}}
 class IdHead {// 'RID128B64SUVP'のようなIDの型を示す文字列
     /**
      * IDメタデータの妥当性を判定し、詳細な構成を返す
-     * @param {string} metaString - ハイフン（乱数セパレータ）より前の文字列
+     * @param {string} headString - ハイフン（乱数セパレータ）より前の文字列
      * @returns {object|null} 妥当なら解析オブジェクト、不当ならnull
      */
-    decode(metaString) {
+    static decode(headString) {
         // 1:Type, 2:ID(固定文字列), 3:数値(bitsかradix), 4:R+数値(明示的radix), 5:F(Full), 6:flags
         const pattern = /^([RTI])(ID)?(\d+(?:-\d+)?)?(?:R(\d+)|(F))?([SUVP]*)$/;
-        const match = metaString.match(pattern);
+        const match = headString.match(pattern);
 
-        if (!match) return null;
+        //if (!match) return null;
+        if (!match) {throw new IdHeadDecordError(`head文字列が不正です。次の正規表現に従ってください。${pattern}`)};
 
         let [_, type, hasId, rawNum, explicitRadix, isFull, flagsStr] = match;
 
@@ -44,12 +52,14 @@ class IdHead {// 'RID128B64SUVP'のようなIDの型を示す文字列
                 bits.time = 48; // Timedデフォルト
                 bits.random = total - 48;
             }
-            if (bits.time < 48 || bits.random < 0) return null;
+//            if (bits.time < 48 || bits.random < 0) return null;
+            if (bits.time < 48 || bits.random < 0) {throw new IdHeadDecordError(`timeBitsは48未満かrandomBitsが0以下です。各bitsを増やしてください。`)}
         } else {
             if (bitsPart && bitsPart.includes('-')) return null; // R,Iでハイフン不可
             bits.time = 0;
             bits.random = bitsPart ? parseInt(bitsPart, 10) : 128;
-            if (bits.random < 8) return null;
+//            if (bits.random < 8) return null;
+            if (bits.random < 8) {throw new IdHeadDecordError(`randomBitsが8より小さいです。増やしてください。`)}
         }
 
         // --- radixの確定 ---
@@ -57,12 +67,14 @@ class IdHead {// 'RID128B64SUVP'のようなIDの型を示す文字列
             radix = 1048576;
         } else if (radixPart) {
             radix = parseInt(radixPart, 10);
-            if (!((radix >= 2 && radix <= 64) || radix === 256)) return null;
+            //if (!((radix >= 2 && radix <= 64) || radix === 256)) return null;
+            if (!((radix >= 2 && radix <= 64) || radix === 256)) {throw new IdHeadDecordError(`radixが不正値です。2〜64か256の整数かFのみ有効です。: ${radix}`)}
         }
 
         // --- flagsの確定 ---
         const flagSet = new Set(flagsStr);
-        if (flagSet.size !== flagsStr.length) return null;
+//        if (flagSet.size !== flagsStr.length) return null;
+        if (flagSet.size !== flagsStr.length) {throw new IdHeadDecordError(`flagが不正値です。SUVPの4字のみ有効です。: ${flagStr}`)}
 
         return {
             type,
@@ -81,7 +93,7 @@ class IdHead {// 'RID128B64SUVP'のようなIDの型を示す文字列
      * @param {object} obj - type, bits, radix, flags を持つオブジェクト
      * @returns {string} メタデータ文字列
      */
-    encode(obj) {
+    static encode(obj) {
         const { type, bits, radix, flags } = obj;
         let res = type + "ID";
 
@@ -119,6 +131,17 @@ class IdHead {// 'RID128B64SUVP'のようなIDの型を示す文字列
 
         return res;
     }
+    constructor(str) {
+        this._ = IdHead.decode(str);
+    }
+    get type() {return this._.type}
+    get timeBits() {return this._.bits.time}
+    get randomBits() {return this._.bits.random}
+    get radix() {return this._.radix}
+    get sortable() {return this._.S}
+    get urlUnsafed() {return this._.U}
+    get visibled() {return this._.V}
+    get padded() {return this._.P}
 }
 
 export const id = (head='RID128R64', nextInt=0n)=>{
