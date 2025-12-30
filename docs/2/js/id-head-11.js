@@ -19,21 +19,15 @@ class IdHead {
         let radixPart = explicitRadix;
 
         if (rawNum) {
-            // 修正箇所：振り分けの優先順位を整理
-            // 後ろに R や F があるなら、前の数字(rawNum)は絶対に bits
-            if (explicitRadix || isFull) {
+            const n = parseInt(rawNum, 10);
+            // 判定ロジックの修正:
+            // 1. Tタイプの場合、数値が1つならそれはbits (TID128等)
+            // 2. ハイフン、明示的R/F指定、または256超の数値ならbits
+            if (type === 'T' || rawNum.includes('-') || explicitRadix || isFull || n > 256) {
                 bitsPart = rawNum;
-            } 
-            // 後ろに指定がない場合
-            else {
-                const n = parseInt(rawNum, 10);
-                // Tタイプ、または数値がradix範囲外(256超)なら bits
-                if (type === 'T' || n > 256) {
-                    bitsPart = rawNum;
-                } else {
-                    radixPart = rawNum;
-                    bitsPart = null;
-                }
+            } else {
+                radixPart = rawNum;
+                bitsPart = null;
             }
         }
 
@@ -109,8 +103,6 @@ class IdHead {
 
         if (radix === 1048576) { res += "F"; } 
         else if (!isDefaultRadix) {
-            // パース時の曖昧さを回避するため、bitsが指定されている場合は常にRを付ける
-            // また bits省略形(128等)であっても明示的なradixはRで繋ぐ
             res += isDefaultBits ? radix : "R" + radix;
         }
 

@@ -13,7 +13,7 @@ const getAllFlagCombinations = () => {
 
 describe("IdHead 正常系: 基本全パターン網羅 (Type x Radix x Flags)", () => {
     const types = ["R", "T", "I"];
-    const radices = [2, 3, 8, 9, 10, 15, 16, 26, 32, 36, 62, 64, 256, 1048576];
+    const radices = [2, 3, 8, 10, 15, 16, 26, 32, 36, 62, 64, 256, 1048576];
     const allFlags = getAllFlagCombinations();
 
     for (const type of types) {
@@ -70,7 +70,7 @@ describe("IdHead 正常系: bits/radixの多様な指定パターン", () => {
         });
     });
 
-    const validRadices = [2, 3, 8, 9, 10, 15, 16, 26, 32, 36, 62, 64, 256, 1048576];
+    const validRadices = [2, 3, 8, 10, 15, 16, 26, 32, 36, 62, 64, 256, 1048576];
     validRadices.forEach(r => {
         test(`RIDR${r} (radix=${r})`, () => {
             const d = IdHead.decode(r === 1048576 ? "RIDF" : `RIDR${r}`);

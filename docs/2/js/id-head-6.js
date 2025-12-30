@@ -1,6 +1,6 @@
 class IdError extends Error {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdError'}}
 class IdDecordError extends IdError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdHeadDecordError'}}
-class IdEncordError extends IdError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdHeadEncordError '}}
+class IdEncordError extends IdError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdEncordError '}}
 class IdHeadDecordError extends IdDecordError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdHeadDecordError'}}
 class IdHeadEncordError extends IdEncordError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdHeadEncordError '}}
 class IdBodyDecordError extends IdDecordError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdBodyDecordError'}}
@@ -19,22 +19,8 @@ class IdHead {
         let radixPart = explicitRadix;
 
         if (rawNum) {
-            // 修正箇所：振り分けの優先順位を整理
-            // 後ろに R や F があるなら、前の数字(rawNum)は絶対に bits
-            if (explicitRadix || isFull) {
-                bitsPart = rawNum;
-            } 
-            // 後ろに指定がない場合
-            else {
-                const n = parseInt(rawNum, 10);
-                // Tタイプ、または数値がradix範囲外(256超)なら bits
-                if (type === 'T' || n > 256) {
-                    bitsPart = rawNum;
-                } else {
-                    radixPart = rawNum;
-                    bitsPart = null;
-                }
-            }
+            if (rawNum.includes('-') || explicitRadix || isFull) { bitsPart = rawNum; } 
+            else { radixPart = rawNum; bitsPart = null; }
         }
 
         if (type === 'T') {
@@ -47,8 +33,8 @@ class IdHead {
                 bits.time = 48; bits.random = total - 48;
             }
             if (!Number.isInteger(bits.time) || !Number.isInteger(bits.random)) throw new IdHeadDecordError(`bitsは整数であるべきです。: time:${bits.time}, random:${bits.random}`);
-            if (bits.time < 48 || bits.random < 8) throw new IdHeadDecordError(`timeBitsは48以上、randomBitsは8以上必要です。: time:${bits.time}, random:${bits.random}`);
-            if (bits.time % 8 !== 0 || bits.random % 8 !== 0) throw new IdHeadDecordError(`bitsの各値は8の倍数であるべきです。: time:${bits.time}, random:${bits.random}`);
+            if (bits.time < 48 || bits.random < 0) throw new IdHeadDecordError(`timeBitsは48以上、randomBitsは0以上必要です。: time:${bits.time}, random:${bits.random}`);
+            if (bits.time % 8 !== 0 || bits.random % 8 !== 0) throw new IdHeadDecordError(`bitsの合計は8の倍数であるべきです。: time:${bits.time}, random:${bits.random}`);
         } else {
             if (bitsPart && bitsPart.includes('-')) throw new IdHeadDecordError(`R/Iタイプではハイフン形式のbits指定はできません。: ${bitsPart}`);
             bits.time = 0;
@@ -58,9 +44,8 @@ class IdHead {
             if (bits.random % 8 !== 0) throw new IdHeadDecordError(`bitsの合計は8の倍数であるべきです。: random:${bits.random}`);
         }
 
-        if (isFull) {
-            radix = 1048576;
-        } else if (radixPart) {
+        if (isFull) { radix = 1048576; } 
+        else if (radixPart) {
             radix = parseInt(radixPart, 10);
             if (!((radix >= 2 && radix <= 64) || radix === 256)) throw new IdHeadDecordError(`radixが不正値です(2〜64, 256, F): ${radixPart}`);
         }
@@ -72,32 +57,48 @@ class IdHead {
     }
 
     static encode(obj) {
-        if (!obj || typeof obj !== 'object') throw new IdHeadEncordError(`引数objが不正です。typeofが'object'の値のみ有効です。: ${typeof obj}`);
+        if (!obj || typeof obj !== 'object') {
+            throw new IdHeadEncordError(`引数objが不正です。typeofが'object'の値のみ有効です。: ${typeof obj}`);
+        }
         const { type, bits, radix, flags } = obj;
-        if (!['R', 'T', 'I'].includes(type)) throw new IdHeadEncordError(`typeが不正です。'R','T','I'のいずれかのみ有効です。: ${type}`);
-        
+        if (!['R', 'T', 'I'].includes(type)) {
+            throw new IdHeadEncordError(`typeが不正です。'R','T','I'のいずれかのみ有効です。: ${type}`);
+        }
+
+        // --- bits オブジェクトの詳細バリデーション ---
         const commonMsg = "bitsオブジェクトが不正です。bitsは'time'と'random'プロパティを持つオブジェクトであり、それぞれtypeofが'number'を返す値であるべきです。";
-        if (!bits || typeof bits !== 'object') throw new IdHeadEncordError(`${commonMsg} bits: typeof ${typeof bits}, ${bits}`);
+        
+        if (!bits || typeof bits !== 'object') {
+            throw new IdHeadEncordError(`${commonMsg} bits: typeof ${typeof bits}, ${bits}`);
+        }
+
         const missing = [];
         if (!('time' in bits)) missing.push("'time'");
         if (!('random' in bits)) missing.push("'random'");
-        if (missing.length > 0) throw new IdHeadEncordError(`${commonMsg} プロパティ不足: ${missing.join(', ')}`);
+        if (missing.length > 0) {
+            throw new IdHeadEncordError(`${commonMsg} プロパティ不足: ${missing.join(', ')}`);
+        }
 
         const typeErrors = [];
         if (typeof bits.time !== 'number') typeErrors.push(`'time' ${typeof bits.time} ${bits.time}`);
         if (typeof bits.random !== 'number') typeErrors.push(`'random' ${typeof bits.random} ${bits.random}`);
-        if (typeErrors.length > 0) throw new IdHeadEncordError(`${commonMsg} 次のプロパティがtypeof numberではありません: ${typeErrors.join(', ')}`);
+        if (typeErrors.length > 0) {
+            throw new IdHeadEncordError(`${commonMsg} 次のプロパティがtypeof numberではありません: ${typeErrors.join(', ')}`);
+        }
 
+        // --- 論理バリデーション ---
         if (type === 'T') {
-            if (bits.time < 48 || bits.random < 8 || bits.time % 8 !== 0 || bits.random % 8 !== 0) {
-                throw new IdHeadEncordError(`bitsの制約（time:48以上, random:8以上, 且つ8の倍数）を満たしていません。: bits.time:${bits.time}, bits.random:${bits.random}`);
+            if (bits.time < 48 || bits.time % 8 !== 0 || bits.random % 8 !== 0) {
+                throw new IdHeadEncordError(`bitsの制約（48以上且つ8の倍数）を満たしていません。: bits.time:${bits.time}, bits.random:${bits.random}`);
             }
         } else {
             if (bits.random < 8 || bits.random % 8 !== 0) {
                 throw new IdHeadEncordError(`bitsの制約（8以上且つ8の倍数）を満たしていません。: bits.random:${bits.random}`);
             }
         }
-        if (!((radix >= 2 && radix <= 64) || radix === 256 || radix === 1048576)) throw new IdHeadEncordError(`radixが範囲外です: ${radix}`);
+        if (!((radix >= 2 && radix <= 64) || radix === 256 || radix === 1048576)) {
+            throw new IdHeadEncordError(`radixが範囲外です: ${radix}`);
+        }
         
         let res = type + "ID";
         const isDefaultBits = (type === 'T') ? (bits.time === 48 && bits.random === 80) : (bits.time === 0 && bits.random === 128);
@@ -109,15 +110,12 @@ class IdHead {
 
         if (radix === 1048576) { res += "F"; } 
         else if (!isDefaultRadix) {
-            // パース時の曖昧さを回避するため、bitsが指定されている場合は常にRを付ける
-            // また bits省略形(128等)であっても明示的なradixはRで繋ぐ
             res += isDefaultBits ? radix : "R" + radix;
         }
 
         ['S', 'U', 'V', 'P'].forEach(f => { if (flags && flags[f] === true) res += f; });
         return res;
     }
-
     constructor(str) { this._ = IdHead.decode(str); }
     get type() { return this._.type; }
     get timeBits() { return this._.bits.time; }
@@ -130,4 +128,3 @@ class IdHead {
 }
 
 export {IdError,IdDecordError,IdEncordError,IdHeadDecordError,IdHeadEncordError,IdBodyDecordError,IdBodyEncordError,IdHead};
-

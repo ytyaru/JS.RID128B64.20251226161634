@@ -7,6 +7,9 @@ class IdBodyDecordError extends IdDecordError {constructor(msg, cause) {cause ? 
 class IdBodyEncordError extends IdEncordError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdBodyEncordError '}}
 
 class IdHead {
+    /**
+     * IDメタデータの妥当性を判定し、詳細な構成を返す
+     */
     static decode(headString) {
         const pattern = /^([RTI])(ID)?(\d+(?:-\d+)?)?(?:R(\d+)|(F))?([SUVP]*)$/;
         const match = headString.match(pattern);
@@ -19,21 +22,16 @@ class IdHead {
         let radixPart = explicitRadix;
 
         if (rawNum) {
-            // 修正箇所：振り分けの優先順位を整理
-            // 後ろに R や F があるなら、前の数字(rawNum)は絶対に bits
-            if (explicitRadix || isFull) {
+            // bits指定であることが確定する条件: 
+            // 1. ハイフンが含まれる (TID48-80)
+            // 2. 後ろに R指定または F指定がある (RID128R32)
+            // 3. rawNumが128より大きい (radixの最大は64,256なので、それを超えればbits)
+            const n = parseInt(rawNum, 10);
+            if (rawNum.includes('-') || explicitRadix || isFull || n > 256) {
                 bitsPart = rawNum;
-            } 
-            // 後ろに指定がない場合
-            else {
-                const n = parseInt(rawNum, 10);
-                // Tタイプ、または数値がradix範囲外(256超)なら bits
-                if (type === 'T' || n > 256) {
-                    bitsPart = rawNum;
-                } else {
-                    radixPart = rawNum;
-                    bitsPart = null;
-                }
+            } else {
+                radixPart = rawNum;
+                bitsPart = null;
             }
         }
 
@@ -71,6 +69,9 @@ class IdHead {
         return { type, bits, radix, flags: { S: flagSet.has('S'), U: flagSet.has('U'), V: flagSet.has('V'), P: flagSet.has('P') } };
     }
 
+    /**
+     * 解析オブジェクトからメタデータ文字列を生成する
+     */
     static encode(obj) {
         if (!obj || typeof obj !== 'object') throw new IdHeadEncordError(`引数objが不正です。typeofが'object'の値のみ有効です。: ${typeof obj}`);
         const { type, bits, radix, flags } = obj;
@@ -109,8 +110,6 @@ class IdHead {
 
         if (radix === 1048576) { res += "F"; } 
         else if (!isDefaultRadix) {
-            // パース時の曖昧さを回避するため、bitsが指定されている場合は常にRを付ける
-            // また bits省略形(128等)であっても明示的なradixはRで繋ぐ
             res += isDefaultBits ? radix : "R" + radix;
         }
 

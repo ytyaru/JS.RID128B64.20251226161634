@@ -19,21 +19,13 @@ class IdHead {
         let radixPart = explicitRadix;
 
         if (rawNum) {
-            // 修正箇所：振り分けの優先順位を整理
-            // 後ろに R や F があるなら、前の数字(rawNum)は絶対に bits
-            if (explicitRadix || isFull) {
+            const n = parseInt(rawNum, 10);
+            // 256を超える数値、または明示的なR/F指定がある場合はbitsとみなす
+            if (rawNum.includes('-') || explicitRadix || isFull || n > 256) {
                 bitsPart = rawNum;
-            } 
-            // 後ろに指定がない場合
-            else {
-                const n = parseInt(rawNum, 10);
-                // Tタイプ、または数値がradix範囲外(256超)なら bits
-                if (type === 'T' || n > 256) {
-                    bitsPart = rawNum;
-                } else {
-                    radixPart = rawNum;
-                    bitsPart = null;
-                }
+            } else {
+                radixPart = rawNum;
+                bitsPart = null;
             }
         }
 
@@ -78,6 +70,7 @@ class IdHead {
         
         const commonMsg = "bitsオブジェクトが不正です。bitsは'time'と'random'プロパティを持つオブジェクトであり、それぞれtypeofが'number'を返す値であるべきです。";
         if (!bits || typeof bits !== 'object') throw new IdHeadEncordError(`${commonMsg} bits: typeof ${typeof bits}, ${bits}`);
+        
         const missing = [];
         if (!('time' in bits)) missing.push("'time'");
         if (!('random' in bits)) missing.push("'random'");
@@ -109,8 +102,6 @@ class IdHead {
 
         if (radix === 1048576) { res += "F"; } 
         else if (!isDefaultRadix) {
-            // パース時の曖昧さを回避するため、bitsが指定されている場合は常にRを付ける
-            // また bits省略形(128等)であっても明示的なradixはRで繋ぐ
             res += isDefaultBits ? radix : "R" + radix;
         }
 

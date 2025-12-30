@@ -1,6 +1,6 @@
 class IdError extends Error {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdError'}}
 class IdDecordError extends IdError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdHeadDecordError'}}
-class IdEncordError extends IdError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdHeadEncordError '}}
+class IdEncordError extends IdError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdEncordError '}}
 class IdHeadDecordError extends IdDecordError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdHeadDecordError'}}
 class IdHeadEncordError extends IdEncordError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdHeadEncordError '}}
 class IdBodyDecordError extends IdDecordError {constructor(msg, cause) {cause ? super(msg, cause) : super(msg); this.name='IdBodyDecordError'}}
@@ -19,22 +19,8 @@ class IdHead {
         let radixPart = explicitRadix;
 
         if (rawNum) {
-            // 修正箇所：振り分けの優先順位を整理
-            // 後ろに R や F があるなら、前の数字(rawNum)は絶対に bits
-            if (explicitRadix || isFull) {
-                bitsPart = rawNum;
-            } 
-            // 後ろに指定がない場合
-            else {
-                const n = parseInt(rawNum, 10);
-                // Tタイプ、または数値がradix範囲外(256超)なら bits
-                if (type === 'T' || n > 256) {
-                    bitsPart = rawNum;
-                } else {
-                    radixPart = rawNum;
-                    bitsPart = null;
-                }
-            }
+            if (rawNum.includes('-') || explicitRadix || isFull) { bitsPart = rawNum; } 
+            else { radixPart = rawNum; bitsPart = null; }
         }
 
         if (type === 'T') {
@@ -47,6 +33,7 @@ class IdHead {
                 bits.time = 48; bits.random = total - 48;
             }
             if (!Number.isInteger(bits.time) || !Number.isInteger(bits.random)) throw new IdHeadDecordError(`bitsは整数であるべきです。: time:${bits.time}, random:${bits.random}`);
+            // randomの最小値を8に修正、メッセージを「8以上かつ8の倍数」に統一
             if (bits.time < 48 || bits.random < 8) throw new IdHeadDecordError(`timeBitsは48以上、randomBitsは8以上必要です。: time:${bits.time}, random:${bits.random}`);
             if (bits.time % 8 !== 0 || bits.random % 8 !== 0) throw new IdHeadDecordError(`bitsの各値は8の倍数であるべきです。: time:${bits.time}, random:${bits.random}`);
         } else {
@@ -58,9 +45,8 @@ class IdHead {
             if (bits.random % 8 !== 0) throw new IdHeadDecordError(`bitsの合計は8の倍数であるべきです。: random:${bits.random}`);
         }
 
-        if (isFull) {
-            radix = 1048576;
-        } else if (radixPart) {
+        if (isFull) { radix = 1048576; } 
+        else if (radixPart) {
             radix = parseInt(radixPart, 10);
             if (!((radix >= 2 && radix <= 64) || radix === 256)) throw new IdHeadDecordError(`radixが不正値です(2〜64, 256, F): ${radixPart}`);
         }
@@ -88,6 +74,7 @@ class IdHead {
         if (typeof bits.random !== 'number') typeErrors.push(`'random' ${typeof bits.random} ${bits.random}`);
         if (typeErrors.length > 0) throw new IdHeadEncordError(`${commonMsg} 次のプロパティがtypeof numberではありません: ${typeErrors.join(', ')}`);
 
+        // 論理バリデーションの強化
         if (type === 'T') {
             if (bits.time < 48 || bits.random < 8 || bits.time % 8 !== 0 || bits.random % 8 !== 0) {
                 throw new IdHeadEncordError(`bitsの制約（time:48以上, random:8以上, 且つ8の倍数）を満たしていません。: bits.time:${bits.time}, bits.random:${bits.random}`);
@@ -102,22 +89,16 @@ class IdHead {
         let res = type + "ID";
         const isDefaultBits = (type === 'T') ? (bits.time === 48 && bits.random === 80) : (bits.time === 0 && bits.random === 128);
         const isDefaultRadix = (radix === 64);
-
         if (!isDefaultBits) {
             res += (type === 'T') ? `${bits.time}-${bits.random}` : bits.random;
         }
-
         if (radix === 1048576) { res += "F"; } 
         else if (!isDefaultRadix) {
-            // パース時の曖昧さを回避するため、bitsが指定されている場合は常にRを付ける
-            // また bits省略形(128等)であっても明示的なradixはRで繋ぐ
             res += isDefaultBits ? radix : "R" + radix;
         }
-
         ['S', 'U', 'V', 'P'].forEach(f => { if (flags && flags[f] === true) res += f; });
         return res;
     }
-
     constructor(str) { this._ = IdHead.decode(str); }
     get type() { return this._.type; }
     get timeBits() { return this._.bits.time; }
@@ -130,4 +111,3 @@ class IdHead {
 }
 
 export {IdError,IdDecordError,IdEncordError,IdHeadDecordError,IdHeadEncordError,IdBodyDecordError,IdBodyEncordError,IdHead};
-

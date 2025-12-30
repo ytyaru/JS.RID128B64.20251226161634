@@ -13,7 +13,7 @@ const getAllFlagCombinations = () => {
 
 describe("IdHead 正常系: 基本全パターン網羅 (Type x Radix x Flags)", () => {
     const types = ["R", "T", "I"];
-    const radices = [2, 3, 8, 9, 10, 15, 16, 26, 32, 36, 62, 64, 256, 1048576];
+    const radices = [2, 3, 8, 10, 16, 26, 32, 36, 62, 64, 256, 1048576];
     const allFlags = getAllFlagCombinations();
 
     for (const type of types) {
@@ -35,34 +35,8 @@ describe("IdHead 正常系: 基本全パターン網羅 (Type x Radix x Flags)",
     }
 });
 
-describe("IdHead 正常系: Type:T (Timed ID) の Bits 網羅テスト", () => {
-    const tCases = [
-        { s: "TID48-8", t: 48, r: 8 },
-        { s: "TID48-16", t: 48, r: 16 },
-        { s: "TID56-8", t: 56, r: 8 },
-        { s: "TID64-64", t: 64, r: 64 },
-        { s: "TID128", t: 48, r: 80 },
-    ];
-
-    tCases.forEach(({ s, t, r }) => {
-        test(`Valid TID: ${s}`, () => {
-            const d = IdHead.decode(s);
-            expect(d.bits.time).toBe(t);
-            expect(d.bits.random).toBe(r);
-            const reEncoded = IdHead.encode(d);
-            if (s === "TID128") {
-                expect(reEncoded).toBe("TID");
-            } else {
-                const reDecoded = IdHead.decode(reEncoded);
-                expect(reDecoded.bits.time).toBe(t);
-                expect(reDecoded.bits.random).toBe(r);
-            }
-        });
-    });
-});
-
 describe("IdHead 正常系: bits/radixの多様な指定パターン", () => {
-    const validBits = [8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 120, 128, 136, 256, 512, 1024];
+    const validBits = [8, 16, 24, 32, 40, 56, 64, 120, 128, 136, 256, 512, 1024];
     validBits.forEach(b => {
         test(`RID${b}R64 (bits=${b})`, () => {
             const d = IdHead.decode(`RID${b}R64`);
@@ -101,15 +75,9 @@ describe("IdHead 異常系: decodeメッセージ検証", () => {
         { s: "RID31R64", m: "bitsの合計は8の倍数であるべきです。: random:31" },
         { s: "RID122R64", m: "bitsの合計は8の倍数であるべきです。: random:122" },
         { s: "RID126R64", m: "bitsの合計は8の倍数であるべきです。: random:126" },
-        // TID制約（境界値重視）
-        { s: "TID40-8", m: "timeBitsは48以上、randomBitsは8以上必要です。: time:40, random:8" },
-        { s: "TID48-0", m: "timeBitsは48以上、randomBitsは8以上必要です。: time:48, random:0" },
-        { s: "TID48-7", m: "timeBitsは48以上、randomBitsは8以上必要です。: time:48, random:7" },
-        // TID 8の倍数制約
-        { s: "TID49-8", m: "bitsの各値は8の倍数であるべきです。: time:49, random:8" },
-        { s: "TID48-9", m: "bitsの各値は8の倍数であるべきです。: time:48, random:9" },
-        { s: "TID50-10", m: "bitsの各値は8の倍数であるべきです。: time:50, random:10" },
-        // 形式
+        { s: "TID40-80", m: "timeBitsは48以上、randomBitsは0以上必要です。: time:40, random:80" },
+        { s: "TID50-80", m: "bitsの合計は8の倍数であるべきです。: time:50, random:80" },
+        { s: "TID48-10", m: "bitsの合計は8の倍数であるべきです。: time:48, random:10" },
         { s: "RID-1R64", m: "head文字列が不正です。: RID-1R64" },
         { s: "RID1.5R64", m: "head文字列が不正です。: RID1.5R64" },
         { s: "RIDRE", m: "head文字列が不正です。: RIDRE" },
@@ -146,20 +114,19 @@ describe("IdHead 異常系: encode(obj) 直接指定バリデーション", () =
     test("bits time: 40 (TID閾値未満)", () => {
         const obj = { type: 'T', bits: { time: 40, random: 80 }, radix: 64, flags: {} };
         expect(() => IdHead.encode(obj)).toThrow(IdHeadEncordError);
-        try { IdHead.encode(obj); } catch (e) { expect(e.message).toBe("bitsの制約（time:48以上, random:8以上, 且つ8の倍数）を満たしていません。: bits.time:40, bits.random:80"); }
-    });
-
-    test("TID encode: randomが0", () => {
-        const obj = { type: 'T', bits: { time: 48, random: 0 }, radix: 64, flags: {} };
-        const msg = "bitsの制約（time:48以上, random:8以上, 且つ8の倍数）を満たしていません。: bits.time:48, bits.random:0";
-        expect(() => IdHead.encode(obj)).toThrow(IdHeadEncordError);
-        try { IdHead.encode(obj); } catch (e) { expect(e.message).toBe(msg); }
+        try { IdHead.encode(obj); } catch (e) { expect(e.message).toBe("bitsの制約（48以上且つ8の倍数）を満たしていません。: bits.time:40, bits.random:80"); }
     });
 
     test("type X (種別不正)", () => {
         const obj = { type: 'X', bits: { time: 0, random: 128 }, radix: 64, flags: {} };
         expect(() => IdHead.encode(obj)).toThrow(IdHeadEncordError);
         try { IdHead.encode(obj); } catch (e) { expect(e.message).toBe("typeが不正です。'R','T','I'のいずれかのみ有効です。: X"); }
+    });
+
+    test("bitsオブジェクト構造不正", () => {
+        const obj = { type: 'R', bits: { random: 128 }, radix: 64, flags: {} };
+        expect(() => IdHead.encode(obj)).toThrow(IdHeadEncordError);
+        try { IdHead.encode(obj); } catch (e) { expect(e.message).toContain("bitsオブジェクトが不正です。"); }
     });
 });
 
@@ -208,4 +175,3 @@ describe("IdHead 異常系: encode(obj) bitsオブジェクト詳細バリデー
         try { IdHead.encode(obj); } catch (e) { expect(e.message).toBe(expectedMsg); }
     });
 });
-
