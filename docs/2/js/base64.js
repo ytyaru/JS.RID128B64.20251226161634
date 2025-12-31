@@ -342,6 +342,28 @@ export class Base64URL extends Base64 {
     toBase64() {return new Base64(this.#toBaset64(this._.str, this._.padNum), this._.u8a, this._.int)}
     #toBase64(str, padNum) {return (str ?? this._.str).replaceAll('-','+').replaceAll('_','/') + '='.repeat(padNum}
 }
+class Base64 {
+    static encode(data) {
+        if ('bigint'===typeof data) {return this.#u8aToStr(B64Int.toU8a(data));}
+        else if (data instanceof Uint8Array) {return this.#u8aToStr(u8a);}
+        else {throw new TypeError(`dataはUint8ArrayインスタンスかBigInt値であるべきです。`)}
+    }
+    static #u8aToStr(u8a) {return 'function'===typeof u8a.toBase64 ? u8a.toBase64() : btoa(String.fromCharCode(...u8a))}
+    static decode(str, toInt=false) {
+        if ('string'!==typeof str){throw new TypeError(`strはString値であるべきです。`)}
+        if (!str.match(this.#R)){throw new TypeError(`strは正規表現 ${this.#R} にマッチすべきです。`)}
+        return toInt ? B64Str.toInt(str) : this.#strToU8a(str);
+    }
+    static #R = /^[A-Za-z0-9\+\/]+$/;
+    static #strToU8a(str) {
+        if ('function'===typeof Uint8Array.fromBase64) {return Uint8Array.fromBase64(str);}
+        // フォールバック: atob を使用して変換
+        const binaryString = atob(str);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {bytes[i] = binaryString.charCodeAt(i);}
+        return bytes;
+    }
+}
 export class Base64 {
     static valids(str,u8a,int) {
         this.valid(str);
